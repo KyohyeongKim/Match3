@@ -11,14 +11,6 @@ public class Board : MonoBehaviour
 	[SerializeField]
 	GameObject squarePrefab;
 	
-	BlockController _blockController;
-	public BlockController BlockController => _blockController;
-
-	public void Init(BlockController blockController)
-	{
-		_blockController = blockController;
-	}
-	
 	public void CreateBoard(int width, int height)
 	{
 		_width = width;
@@ -33,6 +25,4 @@ public class Board : MonoBehaviour
 			}
 		}
 	}
-
-
 }

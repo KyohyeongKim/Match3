@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using UnityEngine;
 
 public class BlockController : MonoBehaviour
@@ -14,6 +15,8 @@ public class BlockController : MonoBehaviour
 	private Block[,] _blocks;
 	
 	private Block _clickedBlock;
+	
+	private bool _isAnimating;
 
 	public void CreateBlocks(int width, int height)
 	{
@@ -56,6 +59,8 @@ public class BlockController : MonoBehaviour
 
 	private void OnClickedBlock(int index)
 	{
+		if (_isAnimating) return;
+		
 		Debug.Log("블럭 클릭! index : " + index);
 		
 		if (_clickedBlock == null)
@@ -92,18 +97,26 @@ public class BlockController : MonoBehaviour
 	private IEnumerator ProceedMatches(int index)
 	{
 		Debug.Log($"블럭 위치 변경, 첫번째 : {_clickedBlock.index}, 두번째 : {index}");
+
+		_isAnimating = true;
 			
 		Vector2Int firstCoord = CoordinateHelper.ConvertFromIndex(_clickedBlock.index);
 		Vector2Int secondCoord = CoordinateHelper.ConvertFromIndex(index);
 			
-		ChangeBlocks(firstCoord, secondCoord, index);
+		ChangeBlocks(firstCoord, secondCoord);
 			
 		_clickedBlock.SetDark(false);
 		_clickedBlock = null;
 		
-		yield return new WaitForSeconds(1f);
 
+		yield return new WaitForSeconds(0.5f);
+		
 		List<Vector2Int> matches = MatchHelper.GetMatches(_blocks);
+
+		if (matches.Count <= 0)
+		{
+			ChangeBlocks(secondCoord, firstCoord);
+		}
 
 		while (matches.Count > 0)
 		{
@@ -121,22 +134,23 @@ public class BlockController : MonoBehaviour
 			yield return new WaitForSeconds(0.5f);
 			matches = MatchHelper.GetMatches(_blocks);
 		}
+
+		// DebugBlocks();
+
+		_isAnimating = false;
 	}
 	
-	private void ChangeBlocks(Vector2Int firstCoord, Vector2Int secondCoord, int index)
+	private void ChangeBlocks(Vector2Int firstCoord, Vector2Int secondCoord)
 	{
-		Vector2 pos = CoordinateHelper.ConvertToWorldPos(secondCoord);
-			
+		Block firstBlock = _blocks[firstCoord.x, firstCoord.y];
 		Block secondBlock = _blocks[secondCoord.x, secondCoord.y];
-		secondBlock.SetPosition(_clickedBlock.transform.localPosition, true);
-		_clickedBlock.SetPosition(pos, true);
+		secondBlock.SetPosition(CoordinateHelper.ConvertToWorldPos(firstCoord), true);
+		firstBlock.SetPosition(CoordinateHelper.ConvertToWorldPos(secondCoord), true);
 
 		_blocks[firstCoord.x, firstCoord.y] = secondBlock;
-		_blocks[secondCoord.x, secondCoord.y] = _clickedBlock;
+		_blocks[secondCoord.x, secondCoord.y] = firstBlock;
 
-		int tempIndex = _clickedBlock.index;
-		_clickedBlock.index = index;
-		secondBlock.index = tempIndex;
+		(firstBlock.index, secondBlock.index) = (secondBlock.index, firstBlock.index);
 	}
 
 	private IEnumerator Fall()
@@ -162,7 +176,7 @@ public class BlockController : MonoBehaviour
 				_blocks[j, targetY] = _blocks[j, i];
 				_blocks[j, targetY].index = CoordinateHelper.ConvertToIndex(new Vector2Int(j, targetY));
 				_blocks[j, i] = null;
-				yield return new WaitForSeconds(0.1f);
+				yield return new WaitForSeconds(0.05f);
 			}
 		}
 	}
@@ -190,9 +204,26 @@ public class BlockController : MonoBehaviour
 					block.Init(index, data, OnClickedBlock);
 				
 					_blocks[j, i] = block;
-					yield return new WaitForSeconds(0.1f);
+					yield return new WaitForSeconds(0.05f);
 				}
 			}
 		}
+	}
+	
+	public void DebugBlocks()
+	{
+		StringBuilder sb = new StringBuilder();
+		
+		for (int i = _blocks.GetLength(1) - 1; i >= 0; i--)
+		{
+			for (int j = 0; j < _blocks.GetLength(0); j++)
+			{
+				sb.Append($"{_blocks[j, i] != null} ");
+			}
+
+			sb.AppendLine();
+		}
+		
+		Debug.Log(sb.ToString());
 	}
 }
