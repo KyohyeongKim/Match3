@@ -36,6 +36,22 @@ public class BlockController : MonoBehaviour
 				_blocks[j, i] = block;
 			}
 		}
+
+		var matches = MatchHelper.GetMatches(_blocks);
+		while (matches.Count > 0)
+		{
+			Debug.Log("매치 생성된 블럭들의 정보 수정");
+			
+			for (int i = 0; i < matches.Count; i++)
+			{
+				BlockData data = blockDatas[Random.Range(0, blockDatas.Length)];
+				Block block = _blocks[matches[i].x, matches[i].y];
+				int index = CoordinateHelper.ConvertToIndex(matches[i]);
+				block.Init(index, data, OnClickedBlock);
+			}
+			
+			matches = MatchHelper.GetMatches(_blocks);
+		}
 	}
 
 	private void OnClickedBlock(int index)
@@ -86,26 +102,24 @@ public class BlockController : MonoBehaviour
 		_clickedBlock = null;
 		
 		yield return new WaitForSeconds(1f);
-			
-		List<Vector2Int> matches = new List<Vector2Int>(); 
-		matches.AddRange(MatchHelper.GetMatches(firstCoord, _blocks));
-		matches.AddRange(MatchHelper.GetMatches(secondCoord, _blocks));
-		matches = matches.Distinct().ToList();
 
-		if (matches.Count > 0)
+		List<Vector2Int> matches = MatchHelper.GetMatches(_blocks);
+
+		while (matches.Count > 0)
 		{
 			Debug.Log("매치 성공");
 			for (int i = 0; i < matches.Count; i++)
 			{
 				int idx = i;
-				Debug.Log($"매치 X : {matches[idx].x}, Y : {matches[idx].y}");
 				_blocks[matches[idx].x, matches[idx].y].Destroy();
 				_blocks[matches[idx].x, matches[idx].y] = null;
-
 			}
 			
 			yield return StartCoroutine(Fall());
 			yield return StartCoroutine(FillBlocks());
+			
+			yield return new WaitForSeconds(0.5f);
+			matches = MatchHelper.GetMatches(_blocks);
 		}
 	}
 	

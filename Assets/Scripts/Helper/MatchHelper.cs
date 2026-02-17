@@ -32,7 +32,6 @@ public static class MatchHelper
 			result.Add(new Vector2Int(coord.x, coord.y - i));
 		}
 		
-		Debug.Log($"세로 매치 갯수 : {result.Count}개");
 		if (result.Count >= 3)
 			return result;
 
@@ -66,26 +65,32 @@ public static class MatchHelper
 			result.Add(new Vector2Int(coord.x - j, coord.y));
 		}
 		 
-		Debug.Log($"가로 매치 갯수 : {result.Count}개");
 		if (result.Count >= 3)
 			return result;
 
 		return new List<Vector2Int>();
 	}
 
-	public static List<Vector2Int> GetMatches(Vector2Int coord, Block[,] blocks)
+	public static List<Vector2Int> GetMatches(Block[,] blocks)
 	{
-		BlockColor color = blocks[coord.x, coord.y].BlockData.color;
-		
 		List<Vector2Int> matches = new List<Vector2Int>();
-		
-		var horizontal = HorizontalMatches(coord, color, blocks);
-		var vertical = VerticalMatches(coord, color, blocks);
-		
-		if (horizontal.Count > 0)
-			matches.AddRange(horizontal);
-		if (vertical.Count > 0)
-			matches.AddRange(vertical);
+
+		for (int i = 0; i < blocks.GetLength(1); i++)
+		{
+			for (int j = 0; j < blocks.GetLength(0); j++)
+			{
+				Vector2Int coord = new Vector2Int(j, i);
+				BlockColor color = blocks[coord.x, coord.y].BlockData.color;
+
+				var horizontal = HorizontalMatches(coord, color, blocks);
+				var vertical = VerticalMatches(coord, color, blocks);
+				
+				if (horizontal.Count > 0)
+					matches.AddRange(horizontal);
+				if (vertical.Count > 0)
+					matches.AddRange(vertical);
+			}
+		}
 		
 		matches = matches.Distinct().ToList();
 		return matches;
