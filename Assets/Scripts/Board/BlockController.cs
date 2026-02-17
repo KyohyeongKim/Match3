@@ -1,5 +1,7 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 public class BlockController : MonoBehaviour
 {
@@ -59,31 +61,7 @@ public class BlockController : MonoBehaviour
 		}
 		else
 		{
-			Debug.Log($"블럭 위치 변경, 첫번째 : {_clickedBlock.index}, 두번째 : {index}");
-			
-			Vector2Int firstCoord = CoordinateHelper.ConvertFromIndex(_clickedBlock.index);
-			Vector2Int secondCoord = CoordinateHelper.ConvertFromIndex(index);
-			Vector2 pos = CoordinateHelper.ConvertToWorldPos(secondCoord);
-			
-			Block secondBlock = _blocks[secondCoord.x, secondCoord.y];
-			secondBlock.SetPosition(_clickedBlock.transform.localPosition, true);
-			_clickedBlock.SetPosition(pos, true);
-			
-			_blocks[firstCoord.x, firstCoord.y] = secondBlock;
-			_blocks[secondCoord.x, secondCoord.y] = _clickedBlock;
-			
-			int tempIndex = _clickedBlock.index;
-			_clickedBlock.index = index;
-			secondBlock.index = tempIndex;
-			
-			_clickedBlock.SetDark(false);
-			_clickedBlock = null;
-			
-			bool checkFirstBlock = MatchHelper.Match3(firstCoord, _blocks);
-			bool checkSecondBlock = MatchHelper.Match3(secondCoord, _blocks);
-			
-			if (checkFirstBlock || checkSecondBlock)
-				Debug.Log("매치 성공");
+			StartCoroutine(ProceedMatches(index));
 		}
 	}
 
@@ -93,5 +71,114 @@ public class BlockController : MonoBehaviour
 		              newIndex == clickedIndex + 8 || newIndex == clickedIndex - 8;
 
 		return result;
+	}
+
+	private IEnumerator ProceedMatches(int index)
+	{
+		Debug.Log($"블럭 위치 변경, 첫번째 : {_clickedBlock.index}, 두번째 : {index}");
+			
+		Vector2Int firstCoord = CoordinateHelper.ConvertFromIndex(_clickedBlock.index);
+		Vector2Int secondCoord = CoordinateHelper.ConvertFromIndex(index);
+			
+		ChangeBlocks(firstCoord, secondCoord, index);
+			
+		_clickedBlock.SetDark(false);
+		_clickedBlock = null;
+		
+		yield return new WaitForSeconds(1f);
+			
+		List<Vector2Int> matches = new List<Vector2Int>(); 
+		matches.AddRange(MatchHelper.GetMatches(firstCoord, _blocks));
+		matches.AddRange(MatchHelper.GetMatches(secondCoord, _blocks));
+		matches = matches.Distinct().ToList();
+
+		if (matches.Count > 0)
+		{
+			Debug.Log("매치 성공");
+			for (int i = 0; i < matches.Count; i++)
+			{
+				int idx = i;
+				Debug.Log($"매치 X : {matches[idx].x}, Y : {matches[idx].y}");
+				_blocks[matches[idx].x, matches[idx].y].Destroy();
+				_blocks[matches[idx].x, matches[idx].y] = null;
+
+			}
+			
+			yield return StartCoroutine(Fall());
+			yield return StartCoroutine(FillBlocks());
+		}
+	}
+	
+	private void ChangeBlocks(Vector2Int firstCoord, Vector2Int secondCoord, int index)
+	{
+		Vector2 pos = CoordinateHelper.ConvertToWorldPos(secondCoord);
+			
+		Block secondBlock = _blocks[secondCoord.x, secondCoord.y];
+		secondBlock.SetPosition(_clickedBlock.transform.localPosition, true);
+		_clickedBlock.SetPosition(pos, true);
+
+		_blocks[firstCoord.x, firstCoord.y] = secondBlock;
+		_blocks[secondCoord.x, secondCoord.y] = _clickedBlock;
+
+		int tempIndex = _clickedBlock.index;
+		_clickedBlock.index = index;
+		secondBlock.index = tempIndex;
+	}
+
+	private IEnumerator Fall()
+	{
+		for (int i = 1; i < _blocks.GetLength(1); i++)
+		{
+			for (int j = 0; j < _blocks.GetLength(0); j++)
+			{
+				if (_blocks[j, i] == null)
+					continue;
+
+				int targetY = -1;
+				for (int idx = i; idx > 0; idx--)
+				{
+					if (_blocks[j, idx - 1] == null)
+						targetY = idx - 1;
+				}
+
+				if (targetY < 0)
+					continue;
+				
+				_blocks[j, i].SetPosition(CoordinateHelper.ConvertToWorldPos(new Vector2Int(j, targetY)), true);
+				_blocks[j, targetY] = _blocks[j, i];
+				_blocks[j, targetY].index = CoordinateHelper.ConvertToIndex(new Vector2Int(j, targetY));
+				_blocks[j, i] = null;
+				yield return new WaitForSeconds(0.1f);
+			}
+		}
+	}
+
+	private IEnumerator FillBlocks()
+	{
+		for (int i = 0; i < _blocks.GetLength(1); i++)
+		{
+			for (int j = 0; j < _blocks.GetLength(0); j++)
+			{
+				if (_blocks[j, i] == null)
+				{
+					GameObject go = Instantiate(blockPrefab, transform);
+				
+					BlockData data = blockDatas[Random.Range(0, blockDatas.Length)];
+					Block block = go.GetComponent<Block>();
+				
+					Vector2Int createCoord = new Vector2Int(j, 10);
+					block.SetPosition(CoordinateHelper.ConvertToWorldPos(createCoord));
+					
+					Vector2Int pos = new Vector2Int(j, i);
+					block.SetPosition(CoordinateHelper.ConvertToWorldPos(pos), true);
+					
+					int index = CoordinateHelper.ConvertToIndex(pos);
+					block.Init(index, data, OnClickedBlock);
+				
+					_blocks[j, i] = block;
+					yield return new WaitForSeconds(0.1f);
+				}
+			}
+		}
 	}
 }

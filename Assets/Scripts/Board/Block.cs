@@ -46,4 +46,9 @@ public class Block : MonoBehaviour
 	{
 		_spriteRenderer.color = dark ? new Color(0.5f, 0.5f, 0.5f, 1f) : Color.white; 
 	}
+
+	public void Destroy()
+	{
+		Destroy(gameObject);
+	}
 }
